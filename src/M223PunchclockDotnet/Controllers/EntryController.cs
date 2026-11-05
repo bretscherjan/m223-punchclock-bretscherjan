@@ -35,4 +35,48 @@ namespace M223PunchclockDotnet.Controllers
 
 
     }
+
+
+    [ApiController]
+    [Route("entries/{id}")]
+    public class EntryByIdController : ControllerBase
+    {
+        private readonly EntryService _entryService;
+
+        public EntryByIdController(EntryService entryService)
+        {
+            _entryService = entryService;
+        }
+
+        [HttpDelete]
+        [ProducesResponseType<Entry>(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> DeleteById(int id)
+        {
+            var entry = await _entryService.DeleteById(id);
+            if (entry == null)
+            {
+                return NotFound();
+            }
+            await _entryService.DeleteById(id);
+            return Ok(entry);
+        }
+
+        [HttpPut]
+        [Consumes(MediaTypeNames.Application.Json)]
+        [ProducesResponseType<Entry>(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> UpdateById(int id, Entry entry)
+        {
+            var existingEntry = await _entryService.FindById(id);
+            if (existingEntry == null)
+            {
+                return NotFound();
+            }
+            existingEntry.CheckIn = entry.CheckIn;
+            existingEntry.CheckOut = entry.CheckOut;
+            await _entryService.UpdateEntry(existingEntry);
+            return Ok(existingEntry);
+        }
+    }
 }
