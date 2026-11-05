@@ -1,0 +1,62 @@
+@startuml sequenz-zeiteintraege-anzeigen
+title Punchclock – Sequenzdiagramm «Zeiteinträge anzeigen»
+
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+autonumber
+
+actor "Mitarbeiter/in" as User
+box "Browser" #F4F8FF
+  participant "index.html\n(Tabelle)" as Page
+  participant "script.js" as JS
+end box
+box "ASP.NET Core (M223PunchclockDotnet)" #F5FFF4
+  participant "ASP.NET Core\nPipeline" as Pipeline
+  participant ":EntryController" as Controller
+  participant ":EntryService" as Service
+  participant ":DatabaseContext" as Context
+end box
+database "PostgreSQL\nTabelle Entry" as DB
+
+User -> Page : Seite öffnen (GET /)
+Page -> JS : DOMContentLoaded
+activate JS
+JS -> JS : Submit-Listener auf\n~#createEntryForm registrieren
+JS -> JS : indexEntries()
+
+JS -> Pipeline : fetch GET /entries
+activate Pipeline
+JS -> Page : renderEntries() mit leerer Liste\n(«Loading...» wird entfernt)
+note right of JS : fetch ist asynchron –\nder Code läuft weiter,\nbevor die Antwort kommt
+
+Pipeline -> Pipeline : Routing [Route("entries")] + [HttpGet]
+create Controller
+Pipeline -> Controller : new EntryController(entryService)\n(Dependency Injection, scoped)
+Pipeline -> Controller : Get()
+activate Controller
+Controller -> Service : FindAll()
+activate Service
+Service -> Context : Entries.ToListAsync()
+activate Context
+Context -> DB : SELECT e."Id", e."CheckIn", e."CheckOut"\nFROM "Entry" AS e
+activate DB
+DB --> Context : Resultat (0..n Zeilen)
+deactivate DB
+Context -> Context : Zeilen → Entry-Objekte\n(Materialisierung, Tracking)
+Context --> Service : List<Entry>
+deactivate Context
+Service --> Controller : List<Entry>
+deactivate Service
+Controller -> Controller : Ok(allEntries)
+Controller --> Pipeline : IActionResult (200)
+deactivate Controller
+Pipeline -> Pipeline : List<Entry> → JSON serialisieren
+Pipeline --> JS : 200 OK\n[ { "id": 1, "checkIn": "...", "checkOut": "..." }, ... ]
+deactivate Pipeline
+
+JS -> JS : result.json()\nentries = result
+JS -> Page : renderEntries()\npro Eintrag eine <tr> (ID, Check-in, Check-out)
+deactivate JS
+Page --> User : Tabelle mit allen Zeiteinträgen
+
+@enduml

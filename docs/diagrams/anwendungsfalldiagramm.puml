@@ -1,0 +1,30 @@
+@startuml anwendungsfalldiagramm
+title Punchclock – UML Anwendungsfalldiagramm
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam actorStyle awesome
+
+actor "Mitarbeiter/in" as Mitarbeiter
+actor "Datenbank\n(PostgreSQL)" as DB <<System>>
+
+rectangle "Punchclock-Applikation" {
+  usecase "Zeiteintrag erfassen\n(Check-in / Check-out)" as UC1
+  usecase "Zeiteinträge anzeigen" as UC2
+  usecase "Eingaben validieren\n(Pflichtfelder Check-in/-out)" as UC3
+  usecase "Zeiteintrag speichern" as UC4
+  usecase "Zeiteinträge laden" as UC5
+}
+
+Mitarbeiter --> UC1
+Mitarbeiter --> UC2
+
+UC1 ..> UC3 : <<include>>
+UC1 ..> UC4 : <<include>>
+UC2 ..> UC5 : <<include>>
+
+UC4 --> DB
+UC5 --> DB
+
+@enduml

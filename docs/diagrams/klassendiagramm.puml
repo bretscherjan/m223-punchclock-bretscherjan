@@ -1,0 +1,65 @@
+@startuml klassendiagramm
+title Punchclock – UML Klassendiagramm
+
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+hide empty members
+set separator none
+
+package "Microsoft.AspNetCore.Mvc" <<Frame>> #EEEEEE {
+  abstract class ControllerBase
+}
+
+package "Microsoft.EntityFrameworkCore" <<Frame>> #EEEEEE {
+  class DbContext
+}
+
+package "M223PunchclockDotnet.Controllers" {
+  class EntryController <<ApiController>> {
+    - _entryService : EntryService
+    + EntryController(entryService : EntryService)
+    + Get() : Task<IActionResult>
+    + AddEntry(entry : Entry) : Task<ActionResult<Entry>>
+  }
+  note right of EntryController
+    [Route("entries")]
+    GET  /entries  → Get()
+    POST /entries  → AddEntry()
+  end note
+}
+
+package "M223PunchclockDotnet.Service" {
+  class EntryService {
+    - _databaseContext : DatabaseContext
+    + EntryService(databaseContext : DatabaseContext)
+    + FindAll() : Task<List<Entry>>
+    + AddEntry(entry : Entry) : Task<Entry>
+  }
+}
+
+package "M223PunchclockDotnet.Model" {
+  class DatabaseContext {
+    + Entries : DbSet<Entry> {get; set;}
+    + DatabaseContext(options : DbContextOptions<DatabaseContext>)
+    # OnModelCreating(modelBuilder : ModelBuilder) : void
+    # OnConfiguring(optionsBuilder : DbContextOptionsBuilder) : void
+  }
+
+  class Entry {
+    + Id : int
+    + CheckIn : DateTime {required}
+    + CheckOut : DateTime {required}
+  }
+}
+
+ControllerBase <|-- EntryController
+DbContext <|-- DatabaseContext
+
+EntryController "1" --> "1" EntryService : _entryService
+EntryService "1" --> "1" DatabaseContext : _databaseContext
+DatabaseContext "1" o-- "0..*" Entry : Entries
+
+EntryController ..> Entry : <<use>>
+EntryService ..> Entry : <<use>>
+
+@enduml

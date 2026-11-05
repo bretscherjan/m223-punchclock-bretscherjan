@@ -1,0 +1,71 @@
+@startuml sequenz-zeiteintrag-erfassen
+title Punchclock – Sequenzdiagramm «Zeiteintrag erfassen»
+
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+autonumber
+
+actor "Mitarbeiter/in" as User
+box "Browser" #F4F8FF
+  participant "index.html\n(Formular)" as Form
+  participant "script.js" as JS
+end box
+box "ASP.NET Core (M223PunchclockDotnet)" #F5FFF4
+  participant "ASP.NET Core\nPipeline" as Pipeline
+  participant ":EntryController" as Controller
+  participant ":EntryService" as Service
+  participant ":DatabaseContext" as Context
+end box
+database "PostgreSQL\nTabelle Entry" as DB
+
+User -> Form : Check-in / Check-out (Datum + Zeit)\neingeben, «Save» klicken
+Form -> JS : submit-Event\ncreateEntry(e)
+activate JS
+JS -> JS : e.preventDefault()\nnew FormData(e.target)
+JS -> JS : dateAndTimeToDate(datum, zeit)\nfür checkIn und checkOut (ISO-String)
+
+JS -> Pipeline : fetch POST /entries\nContent-Type: application/json\n{ "checkIn": "...Z", "checkOut": "...Z" }
+activate Pipeline
+Pipeline -> Pipeline : Routing [Route("entries")] + [HttpPost]\nJSON → Entry deserialisieren
+Pipeline -> Pipeline : Modellvalidierung ([ApiController], [Required])
+
+alt Modell ungültig
+  Pipeline --> JS : 400 Bad Request (ValidationProblemDetails)
+else Modell gültig
+  create Controller
+  Pipeline -> Controller : new EntryController(entryService)\n(Dependency Injection, scoped)
+  Pipeline -> Controller : AddEntry(entry)
+  activate Controller
+  Controller -> Service : AddEntry(entry)
+  activate Service
+  Service -> Context : Entries.Add(entry)
+  activate Context
+  Context -> Context : ChangeTracker:\nEntityState = Added
+  Context --> Service
+  deactivate Context
+  Service -> Context : SaveChangesAsync()
+  activate Context
+  Context -> DB : INSERT INTO "Entry" ("CheckIn", "CheckOut")\nVALUES (@p0, @p1) RETURNING "Id";
+  activate DB
+  DB --> Context : neue "Id" (identity)
+  deactivate DB
+  Context -> Context : entry.Id = neue Id\nEntityState = Unchanged
+  Context --> Service : 1 (Anzahl geänderte Zeilen)
+  deactivate Context
+  Service --> Controller : entry
+  deactivate Service
+  Controller -> Controller : CreatedAtAction(nameof(Get),\nnew { id = entry.Id }, entry)
+  Controller --> Pipeline : ActionResult<Entry> (201)
+  deactivate Controller
+  Pipeline -> Pipeline : Entry → JSON serialisieren
+  Pipeline --> JS : 201 Created\nLocation: /entries?id={id}\n{ "id": 1, "checkIn": "...", "checkOut": "..." }
+end
+deactivate Pipeline
+
+JS -> JS : result.json()
+JS -> JS : entries.push(entry)
+JS -> Form : renderEntries()\nTabelle #entryDisplay neu aufbauen
+deactivate JS
+Form --> User : neuer Eintrag in der Tabelle sichtbar
+
+@enduml
