@@ -35,4 +35,53 @@ namespace M223PunchclockDotnet.Controllers
             return Created($"/categories/{created.Id}", CategoryResponse.FromEntity(created));
         }
     }
+
+    [ApiController]
+    [Route("categories/{id}")]
+    public class CategoryByIdController : ControllerBase
+    {
+        private readonly CategoryService _categoryService;
+
+        public CategoryByIdController(CategoryService categoryService)
+        {
+            _categoryService = categoryService;
+        }
+
+        [HttpGet]
+        [ProducesResponseType<CategoryResponse>(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<CategoryResponse>> GetById(int id)
+        {
+            var category = await _categoryService.FindById(id);
+            if (category == null)
+            {
+                return NotFound();
+            }
+            return Ok(CategoryResponse.FromEntity(category));
+        }
+
+        [HttpPatch]
+        [Consumes(MediaTypeNames.Application.Json)]
+        [ProducesResponseType<CategoryResponse>(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<CategoryResponse>> Update(int id, CategoryRequest request)
+        {
+            var category = await _categoryService.Update(id, request.Title);
+            if (category == null)
+            {
+                return NotFound();
+            }
+            return Ok(CategoryResponse.FromEntity(category));
+        }
+
+        [HttpDelete]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var deleted = await _categoryService.Delete(id);
+            return deleted ? NoContent() : NotFound();
+        }
+    }
 }

@@ -54,9 +54,9 @@ note bottom of EntryTag
 end note
 
 note as N1
-  Soll-Zustand gemäss Anforderungen.
-  Category, Tag und EntryTag existieren in der Datenbank
-  noch nicht; das Diagramm wurde nicht aus der DB ausgelesen.
+  Erweitert um Category, Tag und EntryTag (Branch feature/3-category-tag-endpoints).
+  Das Modell in src/Model ist die Quelle; die Tabellen entstehen beim Start
+  durch EnsureCreated(). Das Diagramm wurde nicht aus der DB ausgelesen.
 end note
 N1 .. Category
 
