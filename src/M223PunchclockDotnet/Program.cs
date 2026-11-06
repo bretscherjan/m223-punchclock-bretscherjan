@@ -17,6 +17,8 @@ builder.Services.AddSwaggerGen();
 
 
 builder.Services.AddScoped<EntryService, EntryService>();
+builder.Services.AddScoped<CategoryService>();
+builder.Services.AddScoped<TagService>();
 
 var app = builder.Build();
 
