@@ -28,9 +28,16 @@ namespace M223PunchclockDotnet.Controllers
         [Consumes(MediaTypeNames.Application.Json)]
         [ProducesResponseType<EntryResponse>(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<EntryResponse>> AddEntry(EntryRequest request)
         {
-            var created = await _entryService.AddEntry(request.ToEntity());
+            var relations = await _entryService.LookupRelations(request.CategoryId, request.TagIds);
+            if (relations.Missing.Count > 0)
+            {
+                return NotFound($"Unknown IDs: {string.Join(", ", relations.Missing)}");
+            }
+
+            var created = await _entryService.AddEntry(request.ToEntity(relations.Category, relations.Tags));
             return CreatedAtAction(
                 nameof(EntryByIdController.GetById),
                 "EntryById",
@@ -89,7 +96,14 @@ namespace M223PunchclockDotnet.Controllers
             {
                 return NotFound();
             }
-            request.ApplyTo(existingEntry);
+
+            var relations = await _entryService.LookupRelations(request.CategoryId, request.TagIds);
+            if (relations.Missing.Count > 0)
+            {
+                return NotFound($"Unknown IDs: {string.Join(", ", relations.Missing)}");
+            }
+
+            request.ApplyTo(existingEntry, relations.Category, relations.Tags);
             await _entryService.UpdateEntry(existingEntry);
             return Ok(EntryResponse.FromEntity(existingEntry));
         }
