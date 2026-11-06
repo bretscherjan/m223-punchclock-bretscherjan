@@ -23,7 +23,7 @@ namespace M223PunchclockDotnet.Service
             return entry;
         }
 
-        public async Task<Entry> DeleteById(int id)
+        public async Task<Entry?> DeleteById(int id)
         {
             var entry = await _databaseContext.Entries.FindAsync(id);
             if (entry != null)
@@ -34,13 +34,13 @@ namespace M223PunchclockDotnet.Service
             return entry;
         }
 
-        public async Task<Entry> FindById(int id)
+        public async Task<Entry?> FindById(int id)
         {
             var entry = await _databaseContext.Entries.FindAsync(id);
             return entry;
         }
 
-        public async Task<Entry> UpdateEntry(Entry entry)
+        public async Task<Entry?> UpdateEntry(Entry entry)
         {
             var existingEntry = await _databaseContext.Entries.FindAsync(entry.Id);
             if (existingEntry != null)

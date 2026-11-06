@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Punchclock – Endpunkt-Definitionen</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; font-size: 9.5pt; color: #1d2330; line-height: 1.4; margin: 0; }
+  h1 { font-size: 18pt; margin: 0 0 2mm; color: #12305a; }
+  h2 { font-size: 12pt; margin: 7mm 0 2mm; color: #12305a; border-bottom: 1.5px solid #12305a; padding-bottom: 1mm; }
+  .meta { color: #5a6475; font-size: 9pt; margin-bottom: 4mm; }
+  p { margin: 0 0 2mm; }
+  ol, ul { margin: 0 0 2mm; padding-left: 5mm; }
+  li { margin-bottom: 1mm; }
+  code { font-family: Consolas, "Courier New", monospace; font-size: 8.8pt; }
+  table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
+  thead { display: table-header-group; }
+  tr { page-break-inside: avoid; }
+  th { background: #12305a; color: #fff; text-align: left; font-weight: 600; padding: 1.6mm 2mm; font-size: 9pt; }
+  td { padding: 1.5mm 2mm; border-bottom: 0.6px solid #cfd5df; vertical-align: top; }
+  tr.group td { background: #e8eef7; font-weight: 700; color: #12305a; border-bottom: 1px solid #9fb1cc; padding-top: 2mm; }
+  td.url { font-family: Consolas, "Courier New", monospace; font-size: 8.8pt; white-space: nowrap; }
+  .m { display: inline-block; min-width: 13mm; text-align: center; font-weight: 700; font-size: 8pt; padding: 0.4mm 1.2mm; border-radius: 1mm; color: #fff; }
+  .GET { background: #2f7d4f; } .POST { background: #1f5fa8; } .PUT { background: #b26a00; } .DELETE { background: #b3261e; }
+  .s { font-size: 8pt; white-space: nowrap; }
+  .done { color: #2f7d4f; font-weight: 700; }
+  .plan { color: #5a6475; }
+  .data td { font-size: 9pt; }
+  .data td:first-child { font-weight: 600; white-space: nowrap; }
+  .note { background: #f4f6fa; border-left: 3px solid #12305a; padding: 2mm 3mm; margin: 3mm 0; font-size: 9pt; }
+</style>
+</head>
+<body>
+
+<h1>Punchclock – Endpunkt-Definitionen</h1>
+<div class="meta">Modul 223 · Projekt <code>m223-punchclock-bretscherjan</code> (ASP.NET Core, EF Core, PostgreSQL) · Jan Bretscher · 05.11.2026</div>
+
+<h2>1. Hauptfunktionen</h2>
+<ol>
+  <li><b>Zeiterfassung</b> – Arbeitszeiten (Check-in / Check-out) erfassen, anzeigen, bearbeiten und löschen.
+      <span class="plan">(Erfassen und Anzeigen sind bereits umgesetzt.)</span></li>
+  <li><b>Kategorienverwaltung</b> – Zeiteinträge einer Kategorie zuordnen (z. B. «Entwicklung», «Meeting», «Schule»).</li>
+  <li><b>Tag-Verwaltung</b> – Zeiteinträge mit mehreren Schlagwörtern markieren (z. B. Projekt- oder Kundenname).</li>
+  <li><b>Benutzerverwaltung &amp; Anmeldung</b> – Registrieren, Anmelden (JWT), eigenes Profil; Administratoren verwalten Benutzer.</li>
+  <li><b>Auswertung</b> – Summe der gearbeiteten Stunden in einem Zeitraum, gruppiert nach Tag und Kategorie.</li>
+</ol>
+
+<h2>2. Verarbeitete Daten</h2>
+<table class="data">
+  <thead><tr><th style="width:22%">Objekt</th><th>Felder</th></tr></thead>
+  <tbody>
+    <tr><td>Entry (Zeiteintrag)</td><td><code>id</code>, <code>checkIn</code>, <code>checkOut</code> (Datum + Zeit, ISO 8601, Pflicht; checkOut nach checkIn), <code>categoryId</code> (optional), <code>tagIds[]</code> (optional), <code>userId</code> (aus dem Token)</td></tr>
+    <tr><td>Category (Kategorie)</td><td><code>id</code>, <code>title</code> (Pflicht, eindeutig)</td></tr>
+    <tr><td>Tag</td><td><code>id</code>, <code>title</code> (Pflicht, eindeutig)</td></tr>
+    <tr><td>User (Benutzer)</td><td><code>id</code>, <code>username</code> (Pflicht, eindeutig), <code>password</code> (nur bei Registrierung/Anmeldung, gespeichert als Hash), <code>role</code> (<code>User</code> / <code>Admin</code>)</td></tr>
+  </tbody>
+</table>
+<div class="note">Ausser <code>/auth/register</code> und <code>/auth/login</code> verlangen alle Endpunkte ein gültiges JWT im Header
+<code>Authorization: Bearer &lt;token&gt;</code>. Anfragen und Antworten verwenden JSON. Ein Benutzer sieht und ändert nur seine eigenen Zeiteinträge.</div>
+
+<h2>3. Endpunkte</h2>
+<table>
+  <thead>
+    <tr>
+      <th style="width:19%">Endpunkt-URL</th>
+      <th style="width:11%">HTTP-Methode</th>
+      <th style="width:31%">Beschreibung</th>
+      <th style="width:28%">Benötigte Daten</th>
+      <th style="width:11%">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="group"><td colspan="5">Zeiterfassung</td></tr>
+    <tr><td class="url">/entries</td><td><span class="m GET">GET</span></td><td>Ruft alle Zeiteinträge des angemeldeten Benutzers ab, optional gefiltert nach Zeitraum oder Kategorie.</td><td>Keine; optional Query <code>from</code>, <code>to</code>, <code>categoryId</code></td><td class="s done">umgesetzt*</td></tr>
+    <tr><td class="url">/entries/{id}</td><td><span class="m GET">GET</span></td><td>Ruft einen einzelnen Zeiteintrag ab.</td><td>Eintrags-ID</td><td class="s plan">geplant</td></tr>
+    <tr><td class="url">/entries</td><td><span class="m POST">POST</span></td><td>Erstellt einen neuen Zeiteintrag. Antwort: <code>201 Created</code> mit dem gespeicherten Eintrag.</td><td>checkIn, checkOut; optional categoryId, tagIds</td><td class="s done">umgesetzt*</td></tr>
+    <tr><td class="url">/entries/{id}</td><td><span class="m PUT">PUT</span></td><td>Aktualisiert einen bestehenden Zeiteintrag.</td><td>Eintrags-ID; checkIn, checkOut, categoryId, tagIds</td><td class="s plan">geplant</td></tr>
+    <tr><td class="url">/entries/{id}</td><td><span class="m DELETE">DELETE</span></td><td>Löscht den Zeiteintrag mit der ID {id}.</td><td>Eintrags-ID</td><td class="s plan">geplant</td></tr>
+
+    <tr class="group"><td colspan="5">Kategorienverwaltung</td></tr>
+    <tr><td class="url">/categories</td><td><span class="m GET">GET</span></td><td>Ruft alle Kategorien ab (z. B. für die Auswahl im Formular).</td><td>Keine</td><td class="s plan">geplant</td></tr>
+    <tr><td class="url">/categories</td><td><span class="m POST">POST</span></td><td>Erstellt eine neue Kategorie.</td><td>Titel</td><td class="s plan">geplant</td></tr>
+    <tr><td class="url">/categories/{id}</td><td><span class="m PUT">PUT</span></td><td>Benennt eine Kategorie um.</td><td>Kategorie-ID, Titel</td><td class="s plan">geplant</td></tr>
+    <tr><td class="url">/categories/{id}</td><td><span class="m DELETE">DELETE</span></td><td>Löscht eine Kategorie; zugeordnete Einträge verlieren die Kategorie.</td><td>Kategorie-ID</td><td class="s plan">geplant</td></tr>
+
+    <tr class="group"><td colspan="5">Tag-Verwaltung</td></tr>
+    <tr><td class="url">/tags</td><td><span class="m GET">GET</span></td><td>Ruft alle Tags ab.</td><td>Keine</td><td class="s plan">geplant</td></tr>
+    <tr><td class="url">/tags</td><td><span class="m POST">POST</span></td><td>Erstellt einen neuen Tag.</td><td>Titel</td><td class="s plan">geplant</td></tr>
+    <tr><td class="url">/tags/{id}</td><td><span class="m PUT">PUT</span></td><td>Benennt einen Tag um.</td><td>Tag-ID, Titel</td><td class="s plan">geplant</td></tr>
+    <tr><td class="url">/tags/{id}</td><td><span class="m DELETE">DELETE</span></td><td>Löscht einen Tag und entfernt ihn von allen Einträgen.</td><td>Tag-ID</td><td class="s plan">geplant</td></tr>
+
+    <tr class="group"><td colspan="5">Benutzerverwaltung &amp; Anmeldung</td></tr>
+    <tr><td class="url">/auth/register</td><td><span class="m POST">POST</span></td><td>Registriert einen neuen Benutzer (Rolle <code>User</code>).</td><td>Benutzername, Passwort</td><td class="s plan">geplant</td></tr>
+    <tr><td class="url">/auth/login</td><td><span class="m POST">POST</span></td><td>Meldet einen Benutzer an und liefert ein JWT zurück.</td><td>Benutzername, Passwort</td><td class="s plan">geplant</td></tr>
+    <tr><td class="url">/users/me</td><td><span class="m GET">GET</span></td><td>Ruft das Profil des angemeldeten Benutzers ab.</td><td>JWT</td><td class="s plan">geplant</td></tr>
+    <tr><td class="url">/users</td><td><span class="m GET">GET</span></td><td>Ruft alle Benutzer ab (nur Admin).</td><td>JWT mit Rolle Admin</td><td class="s plan">geplant</td></tr>
+    <tr><td class="url">/users/{id}</td><td><span class="m DELETE">DELETE</span></td><td>Löscht einen Benutzer inkl. seiner Zeiteinträge (nur Admin).</td><td>Benutzer-ID; JWT mit Rolle Admin</td><td class="s plan">geplant</td></tr>
+
+    <tr class="group"><td colspan="5">Auswertung</td></tr>
+    <tr><td class="url">/reports/hours</td><td><span class="m GET">GET</span></td><td>Liefert die Summe der Arbeitsstunden im Zeitraum, pro Tag und pro Kategorie.</td><td>Query <code>from</code>, <code>to</code> (Datum)</td><td class="s plan">geplant</td></tr>
+  </tbody>
+</table>
+<p style="margin-top:2mm; font-size:8.5pt; color:#5a6475;">* Im aktuellen Code (<code>EntryController</code>) bereits vorhanden: <code>GET /entries</code> und <code>POST /entries</code> mit checkIn und checkOut – noch ohne Filter, Kategorie, Tags und Anmeldung.</p>
+
+</body>
+</html>
